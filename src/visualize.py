@@ -3,6 +3,30 @@ import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 import argparse
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+# Define a custom linear colourmap with extended extremes.
+# Standard RdYlBu flattens out at the ends. By adding almost-black blue
+# and almost-black red, we ensure the extremes have a long, distinguishable transition.
+CUSTOM_COLOURS = [
+    "#000055", # -5: Almost black blue
+    "#081d58", # -4: Very dark blue
+    "#225ea8", # -2: Medium dark blue
+    "#41b6c4", # -1: Light blue
+    "#e0f3f8", #  0: Very light blue
+    "#ffffbf", #  0.5: Light yellow (median is around 0.2)
+    "#fec44f", #  1: Orange-yellow
+    "#e31a1c", #  2: Red
+    "#800026", #  4: Very dark red
+    "#550000"  #  5: Almost black red
+]
+
+CUSTOM_CMAP = LinearSegmentedColormap.from_list("custom_medea", CUSTOM_COLOURS, N=256)
+try:
+    plt.colormaps.register(name="custom_medea", cmap=CUSTOM_CMAP, force=True)
+except Exception:
+    pass
 
 def main():
     parser = argparse.ArgumentParser(description="Generate MEDEA map for one or more provinces.")
@@ -58,11 +82,12 @@ def main():
     
     print("Generating interactive HTML map...")
     # Geopandas explore() makes a beautiful Folium map automatically
+    # We remove 'scheme' to force a continuous colourbar, and anchor vmin/vmax.
     m = merged_gdf.explore(
         column="medea_score",
-        cmap="YlOrRd", # Yellow to Red (Red = High Deprivation)
-        scheme="quantiles", # Group by quantiles to show relative deprivation
-        k=5, # 5 quintiles (Very Low, Low, Medium, High, Very High)
+        cmap="custom_medea",
+        vmin=-5.0, # Anchor the min value for a strict linear mapping
+        vmax=5.0,  # Anchor the max value for a strict linear mapping
         tooltip=[
             "tract_id", "NMUN", "CDIS", "medea_score", 
             "unemployment_pct", "manual_pct", "education_pct"
