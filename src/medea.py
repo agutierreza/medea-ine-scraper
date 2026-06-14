@@ -120,10 +120,37 @@ class MedeaCalculator:
         # Ensure we check the correct index for unemployment if it exists
         unemp_idx = active_indicators.index("unemployment_pct") if "unemployment_pct" in active_indicators else 0
         corr_unemployment = np.corrcoef(standardized_data[:, unemp_idx], pc1_scores[:, 0])[0, 1]
+        
+        inverted = False
         if corr_unemployment < 0:
             pc1_scores = -pc1_scores
+            inverted = True
             logger.info("Inverted PC1 sign so that higher score = higher deprivation.")
             
+        # Statistical Diagnostic Report
+        eigenvalue = pca.explained_variance_[0]
+        eigenvector = pca.components_[0]
+        if inverted:
+            eigenvector = -eigenvector
+            
+        # Component Loadings (correlation between variables and the principal component)
+        loadings = eigenvector * np.sqrt(eigenvalue)
+        # Communalities (proportion of variance retained for each variable by PC1)
+        communalities = loadings ** 2
+        
+        report_lines = [
+            "",
+            "=== MEDEA Statistical Diagnostic Report ===",
+            f"Eigenvalue of PC1: {eigenvalue:.4f} (Kaiser Criterion > 1.0: {'PASS' if eigenvalue > 1.0 else 'FAIL'})",
+            "Component Loadings & Communalities:"
+        ]
+        
+        for idx, col in enumerate(active_indicators):
+            report_lines.append(f"  - {col}: Loading = {loadings[idx]:.4f}, Communality = {communalities[idx]:.4f}")
+            
+        report_lines.append("===========================================")
+        print("\n".join(report_lines))
+        
         valid_data["medea_score"] = pc1_scores
         
         # Merge back to the original dataframe to keep all rows (NaN tracts will have NaN medea_score)
